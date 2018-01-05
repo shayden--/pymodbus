@@ -106,9 +106,14 @@ class ModbusSingleRequestHandler(ModbusBaseRequestHandler):
                         unit_address = int(data[1:3], 16)
                     elif isinstance(self.framer, ModbusBinaryFramer):
                         unit_address = byte2int(data[1])
-                    else:
+                    elif isinstance(self.framer, ModbusRtuFramer):
                         unit_address = byte2int(data[0])
-
+                    elif isinstance(self.framer, ModbusSocketFramer):
+                        unit_address = byte2int(data[6])
+                    else:
+                        _logger.error("Unknown"
+                                      " framer - {}".format(type(self.framer)))
+                        unit_address = -1
                     if unit_address in self.server.context:
                         self.framer.processIncomingPacket(data, self.execute)
             except Exception as msg:
