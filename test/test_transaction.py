@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+import sys
+import os.path
+
+# add the project control dir to the system path so that
+# production modules can be imported/tested
+pymodbusdev_dir = (os.path.abspath('/home/ty/repos/pymodbus/'))
+sys.path.insert(1,pymodbusdev_dir)
+
 import unittest
 from binascii import a2b_hex
 from pymodbus.pdu import *
@@ -235,7 +243,7 @@ class ModbusTransactionTest(unittest.TestCase):
 
         actual = resultStore()
 
-        def mock__process(callback):
+        def mock__process(callback,error=None):
             callback(self._tcp.getFrame())
             self._tcp.advanceFrame()
 
@@ -263,7 +271,7 @@ class ModbusTransactionTest(unittest.TestCase):
 
         actual = resultStore()
 
-        def mock__process(callback):
+        def mock__process(callback,error=None):
             callback(self._tcp.getFrame())
             self._tcp.advanceFrame()
 
@@ -291,7 +299,7 @@ class ModbusTransactionTest(unittest.TestCase):
 
         actual = resultStore()
 
-        def mock__process(callback):
+        def mock__process(callback,error=None):
             callback(self._tcp.getFrame())
             self._tcp.advanceFrame()
 
@@ -321,7 +329,7 @@ class ModbusTransactionTest(unittest.TestCase):
 
         actual = resultStore()
 
-        def mock__process(callback):
+        def mock__process(callback,error=None):
             callback(self._tcp.getFrame())
             self._tcp.advanceFrame()
 
@@ -352,7 +360,7 @@ class ModbusTransactionTest(unittest.TestCase):
 
         actual = resultStore()
 
-        def mock__process(callback):
+        def mock__process(callback,error=None):
             callback(self._tcp.getFrame())
             self._tcp.advanceFrame()
 

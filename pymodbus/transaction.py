@@ -1,6 +1,7 @@
 '''
 Collection of transaction based abstractions
 '''
+
 import sys
 import struct
 import socket
@@ -379,20 +380,25 @@ class ModbusSocketFramer(IModbusFramer):
     #-----------------------------------------------------------------------#
     # Private Helper Functions
     #-----------------------------------------------------------------------#
-    def checkFrame(self):
+    def checkFrame(self,frame_data=None):
         '''
         Check and decode the next frame Return true if we were successful
+        Use temporary data if it is passed, otherwise use the instance 
+        _buffer
         '''
-        if len(self._buffer) > self._hsize:
-            self._header['tid'], self._header['pid'], \
-            self._header['len'], self._header['uid'] = struct.unpack(
-                    '>HHHB', self._buffer[0:self._hsize])
+        if frame_data==None:
+            frame_data=self._buffer
+            frame_header=self._header
+        else:
+            frame_header={'tid':0, 'pid':0, 'len':0, 'uid':0}
 
-            # someone sent a partial frame, frame not ready
-            #if self._header['len'] < 2:
-            #    self.advanceFrame()
-            # we have at least a complete message, continue
-            if len(self._buffer) - self._hsize + 1 >= self._header['len']:
+        if len(frame_data) > self._hsize:
+            frame_header['tid'], frame_header['pid'], \
+            frame_header['len'], frame_header['uid'] = struct.unpack(
+                    '>HHHB', frame_data[0:self._hsize])
+
+           # we have at least a complete message, continue
+            if len(frame_data) - self._hsize + 1 >= frame_header['len']:
                 return True
         # we don't have enough of a message yet, wait
         return False
@@ -407,14 +413,20 @@ class ModbusSocketFramer(IModbusFramer):
         self._buffer = self._buffer[length:]
         self._header = {'tid':0, 'pid':0, 'len':0, 'uid':0}
 
-    def isFrameReady(self):
+    def isFrameReady(self,frame_data=None):
         ''' Check if we should continue decode logic
         This is meant to be used in a while loop in the decoding phase to let
         the decoder factory know that there is still data in the buffer.
 
+        Use temporary data if it is passed, otherwise use the instance 
+        _buffer
+
         :returns: True if ready, False otherwise
         '''
-        return len(self._buffer) > self._hsize
+        if frame_data==None:
+            frame_data=self._buffer
+
+        return len(frame_data) > self._hsize
 
     def addToFrame(self, message):
         ''' Adds new packet data to the current frame buffer
@@ -461,6 +473,13 @@ class ModbusSocketFramer(IModbusFramer):
         :param callback: The function to send results to
         '''
         _logger.debug(' '.join([hex(byte2int(x)) for x in data]))
+
+        # check if there are error bytes before a new valid packet
+        if ((len(self._buffer) > 0) and (not self.isFrameReady()) and self.isFrameReady(data) and (not self.checkFrame()) and self.checkFrame(data)):
+            self._process(callback,error=True)
+            self.resetFrame()
+
+        # otherwise, add the new data to the buffer and continue processing
         self.addToFrame(data)
         while self.isFrameReady() and self.checkFrame():
             self._process(callback)
@@ -470,7 +489,9 @@ class ModbusSocketFramer(IModbusFramer):
         Process incoming packets irrespective error condition
         """
         data = self.getRawFrame() if error else self.getFrame()
+        _logger.debug("_process input data: {}".format(data))
         result = self.decoder.decode(data)
+        _logger.debug("_process result: {}".format(result))
         if result is None:
             raise ModbusIOException("Unable to decode request")
         elif error and result.function_code < 0x80:
